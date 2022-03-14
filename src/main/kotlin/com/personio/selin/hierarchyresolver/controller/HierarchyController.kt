@@ -27,12 +27,4 @@ class HierarchyController(
 
 	@GetMapping("/all")
 	fun findAll() = repository.findAll()
-
-	/*
-	@GetMapping
-	fun getSupervisorsOfEmployee(@PathVariable name: String): String {
-		return "{}"
-	}
-
-	*/
 }
