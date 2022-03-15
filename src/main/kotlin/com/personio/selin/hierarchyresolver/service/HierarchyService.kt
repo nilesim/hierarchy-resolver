@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.node.TextNode
 import com.personio.selin.hierarchyresolver.domain.model.Relation
 import com.personio.selin.hierarchyresolver.repository.RelationRepository
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.server.ResponseStatusException
 import java.util.*
 
 
@@ -29,8 +31,8 @@ class HierarchyService(
 		}
 
 		val rootCount = repo.countBySupervisorIdNull()
-		if (rootCount == 0) throw Exception("This hierarchy contain loops.")
-		if (rootCount > 1) throw Exception("This hierarchy has multiple roots.")
+		if (rootCount == 0) throw ResponseStatusException(HttpStatus.EXPECTATION_FAILED, "This hierarchy contain loops.")
+		if (rootCount > 1) throw ResponseStatusException(HttpStatus.EXPECTATION_FAILED, "This hierarchy has multiple roots.")
 		val result: ObjectNode = JsonNodeFactory.instance.objectNode()
 		repo.findBySupervisorIdNull()?.let { result.set<JsonNode>(it.name, getChild(it.id!!)); }
 		return result
