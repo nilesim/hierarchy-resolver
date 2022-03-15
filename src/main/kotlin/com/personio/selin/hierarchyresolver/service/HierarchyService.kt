@@ -29,11 +29,10 @@ class HierarchyService(
 		}
 
 		val rootCount = repo.countBySupervisorIdNull()
-		if (rootCount == 0) throw Exception("this hierarchy contain loops.")
-		if (rootCount > 1) throw Exception("this hierarchy has multiple roots.")
+		if (rootCount == 0) throw Exception("This hierarchy contain loops.")
+		if (rootCount > 1) throw Exception("This hierarchy has multiple roots.")
 		val result: ObjectNode = JsonNodeFactory.instance.objectNode()
 		repo.findBySupervisorIdNull()?.let { result.set<JsonNode>(it.name, getChild(it.id!!)); }
-		println(result)
 		return result
 	}
 
@@ -44,31 +43,22 @@ class HierarchyService(
 		val child: ObjectNode = JsonNodeFactory.instance.objectNode()
 		relations.map {
 			child.set<JsonNode>(it.name, getChild(it.id!!))
-			println(child)
 		}
 		return child
 	}
 
 	fun getSupervisorsOfEmployee(name: String): ObjectNode {
 		val result: ObjectNode = JsonNodeFactory.instance.objectNode()
-		val supervisor: String
-		val superiorVisor: String
 		repo.findOneByName(name)?.let {
-			println(it.name)
-			it.supervisorId?.let {
-				repo.findByIdOrNull(it)?.let { k ->
+			it.supervisorId?.let { repo.findByIdOrNull(it)?.let { k ->
 					result.set<JsonNode>("supervisor", TextNode(k.name))
-					println(k.name)
-					k.supervisorId?.let {
-						repo.findByIdOrNull(it)?.let { r ->
+					k.supervisorId?.let { repo.findByIdOrNull(it)?.let { r ->
 							result.set<JsonNode>("superiorVisor", TextNode(r.name))
-							println(r.name)
 						}
 					}
 				}
 			}
 		}
-		println(result)
 		return result
 	}
 }

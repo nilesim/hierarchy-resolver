@@ -1,151 +1,168 @@
 package com.personio.selin.hierarchyresolver.service
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-/*
-import com.personio.selin.hierarchyresolver.repository.HierarchyRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.personio.selin.hierarchyresolver.domain.model.Relation
+import com.personio.selin.hierarchyresolver.repository.RelationRepository
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.test.runBlockingTest
-import org.junit.jupiter.api.Assertions
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.springframework.data.domain.PageRequest
-import java.util.UUID
-*/
-@ExperimentalCoroutinesApi
+import org.springframework.data.repository.findByIdOrNull
+import java.util.*
+import java.util.Map
+import kotlin.collections.mutableListOf
+
 internal class HierarchyServiceTest {
-/*
-    private val hierarchyService = HierarchyService()
-	@MockK
-    private val hierarchyRepository = HierarchyRepository()
+	private val relationRepository: RelationRepository = mockk()
+	private val hierarchyService = HierarchyService(relationRepository)
 
-    @Test
-    fun `when recipientAccountService#create is called it should correctly create RecipientAccount`() {
-        runBlockingTest {
-            // Given
-            val recipientAccount =
-                listOf(getRecipientAccount(id = null, targetCustomerId = null, version = null, createdAt = null, lastModifiedAt = null))
-            val createRecipientAccountRequest = getCreateRecipientAccountRequest()
-            val expected = listOf(getRecipientAccount())
+	@Test
+	fun whenArrangeStructure_success_thenReturnObjectNode() {
+		//given
+		val parentUUID = UUID.randomUUID()
+		val child1UUID = UUID.randomUUID()
+		val child2UUID = UUID.randomUUID()
+		val relation = Relation(id = UUID.randomUUID(), name = "Childwhatever", supervisorId = parentUUID)
+		val relations = mutableListOf(
+			Relation(id = child1UUID, name = "Pete", supervisorId = parentUUID),
+			Relation(id = child2UUID, name = "Barbara", supervisorId = parentUUID)
+		)
+		val relationNick = Relation(id = parentUUID, name = "Nick", supervisorId = null)
+		every { relationRepository.findOneByName("Pete") } returns null
+		every { relationRepository.findOneByName("Barbara") } returns null
+		every { relationRepository.findOneByName("Nick") } returns relationNick
+		every { relationRepository.save(any()) } returns relation
+		every { relationRepository.countBySupervisorIdNull() } returns 1
+		every { relationRepository.findBySupervisorIdNull() } returns relationNick
+		every { relationRepository.findBySupervisorId(parentUUID) } returns relations
+		every { relationRepository.findBySupervisorId(child1UUID) } returns mutableListOf()
+		every { relationRepository.findBySupervisorId(child2UUID) } returns mutableListOf()
 
-            coEvery { customerService.existsById(createRecipientAccountRequest.customerId) } returns true
-            coEvery {
-                recipientAccountRepository.existsByCustomerIdAndTargetInfo(
-                    any(),
-                    any()
-                )
-            } returns false
-            coEvery { recipientAccountRepository.saveAll(recipientAccount) } returns expected.asFlow()
-            every { appProperties.bulkCreateRecipientAccountLimit } returns 20
+		val relationMap = Map.of(
+			"Pete", "Nick",
+			"Barbara", "Nick"
+		)
+		val relationNode = ObjectMapper().valueToTree<ObjectNode>(relationMap)
 
-            // When
-            recipientAccountService.create(createRecipientAccountRequest)
+		//when
+		val result = hierarchyService.arrangeStructure(relationNode)
 
-            // Then
-            coVerify(exactly = 1) { recipientAccountRepository.saveAll(recipientAccount) }
-            coVerify(exactly = 1) { customerService.existsById(recipientAccount[0].customerId) }
-            coVerify(exactly = 1) {
-                recipientAccountRepository.existsByCustomerIdAndTargetInfo(
-                    any(),
-                    any()
-                )
-            }
-        }
-    }
+		val resultNode = ObjectMapper().readTree(
+			"{\n" +
+					"            \"Nick\": {\n" +
+					"                \"Pete\": {},\n" +
+					"                \"Barbara\": {}\n" +
+					"            }\n" +
+					"}"
+		)
+		//then
+		verify(exactly = 1) { relationRepository.findOneByName("Pete") }
+		assertEquals(resultNode, result)
+	}
 
-    @Test
-    fun `when recipientAccountService#create is called with too many recipients it should throw BadRequestException`() {
-        runBlockingTest {
-            // Given
-            val createRecipientAccountRequest = getCreateRecipientAccountRequest(
-                recipientAccountRequestList = MutableList(25) { getRecipientAccountRequest() }
-            )
+	@Test
+	fun whenArrangeStructure_loop_fail_thenReturnException() {
+		//given
+		val expectedMessage = "This hierarchy contain loops."
+		val parentUUID = UUID.randomUUID()
+		val child1UUID = UUID.randomUUID()
+		val child2UUID = UUID.randomUUID()
+		val relation = Relation(id = UUID.randomUUID(), name = "Childwhatever", supervisorId = parentUUID)
+		val relationPete = Relation(id = child1UUID, name = "Pete", supervisorId = parentUUID)
+		val relationBarbara = Relation(id = child2UUID, name = "Barbara", supervisorId = parentUUID)
+		val relations = mutableListOf(relationPete, relationBarbara)
+		val relationNick = Relation(id = parentUUID, name = "Nick", supervisorId = child2UUID)
+		every { relationRepository.findOneByName("Pete") } returns relationPete
+		every { relationRepository.findOneByName("Barbara") } returns relationBarbara
+		every { relationRepository.findOneByName("Nick") } returns relationNick
+		every { relationRepository.save(any()) } returns relation
+		every { relationRepository.countBySupervisorIdNull() } returns 0
+		every { relationRepository.findBySupervisorIdNull() } returns relationNick
+		every { relationRepository.findBySupervisorId(parentUUID) } returns relations
+		every { relationRepository.findBySupervisorId(child1UUID) } returns mutableListOf()
+		every { relationRepository.findBySupervisorId(child2UUID) } returns mutableListOf()
 
-            every { appProperties.bulkCreateRecipientAccountLimit } returns 20
+		val relationMap = Map.of(
+			"Pete", "Nick",
+			"Barbara", "Nick",
+			"Nick", "Pete"
+		)
+		val relationNode = ObjectMapper().valueToTree<ObjectNode>(relationMap)
 
-            // Then
-            Assertions.assertThrows(BadRequestException::class.java) {
-                runBlockingTest { recipientAccountService.create(createRecipientAccountRequest) }
-            }
-        }
-    }
+		//when
+		val exception: Exception = assertThrows(Exception::class.java) {
+			hierarchyService.arrangeStructure(relationNode)
+		}
 
-    @Test
-    fun `when recipientAccountService#create is called with non-existing customer it should throw NotFoundException`() {
-        runBlockingTest {
-            // Given
-            val recipientAccount =
-                getRecipientAccount(id = null, version = null, createdAt = null, lastModifiedAt = null)
-            val createRecipientAccountRequest = getCreateRecipientAccountRequest()
+		//then
+		val actualMessage = exception.message
+		assertTrue(actualMessage!!.contains(expectedMessage))
+	}
 
-            coEvery { customerService.existsById(recipientAccount.customerId) } returns false
-            every { appProperties.bulkCreateRecipientAccountLimit } returns 20
+	@Test
+	fun whenArrangeStructure_multipleroot_fail_thenReturnException() {
+		//given
+		val expectedMessage = "This hierarchy has multiple roots."
+		val parentUUID = UUID.randomUUID()
+		val child1UUID = UUID.randomUUID()
+		val child2UUID = UUID.randomUUID()
+		val relation = Relation(id = UUID.randomUUID(), name = "Childwhatever", supervisorId = parentUUID)
+		val relationPete = Relation(id = child1UUID, name = "Pete", supervisorId = parentUUID)
+		val relationBarbara = Relation(id = child2UUID, name = "Barbara", supervisorId = parentUUID)
+		val relationNick = Relation(id = parentUUID, name = "Nick", supervisorId = null)
+		val relationSophie = Relation(id = parentUUID, name = "Sophie", supervisorId = null)
+		every { relationRepository.findOneByName("Pete") } returns relationPete
+		every { relationRepository.findOneByName("Barbara") } returns relationBarbara
+		every { relationRepository.findOneByName("Nick") } returns relationNick
+		every { relationRepository.findOneByName("Sophie") } returns relationSophie
+		every { relationRepository.save(any()) } returns relation
+		every { relationRepository.countBySupervisorIdNull() } returns 2
 
-            Assertions.assertThrows(NotFoundException::class.java) {
-                runBlockingTest { recipientAccountService.create(createRecipientAccountRequest) }
-            }
-        }
-    }
+		val relationMap = Map.of(
+			"Pete", "Nick",
+			"Barbara", "Sophie"
+		)
+		val relationNode = ObjectMapper().valueToTree<ObjectNode>(relationMap)
 
-    @Test
-    fun `when recipientAccountService#create is called with non-existing customer it should throw ConflictException`() {
-        runBlockingTest {
-            // Given
-            val recipientAccount =
-                getRecipientAccount(id = null, version = null, createdAt = null, lastModifiedAt = null)
-            val createRecipientAccountRequest = getCreateRecipientAccountRequest()
+		//when
+		val exception: Exception = assertThrows(Exception::class.java) {
+			hierarchyService.arrangeStructure(relationNode)
+		}
 
-            coEvery { customerService.existsById(recipientAccount.customerId) } returns true
-            coEvery {
-                recipientAccountRepository.existsByCustomerIdAndTargetInfo(
-                    recipientAccount.customerId,
-                    recipientAccount.targetInfo
-                )
-            } returns true
-            every { appProperties.bulkCreateRecipientAccountLimit } returns 20
+		//then
+		val actualMessage = exception.message
+		assertTrue(actualMessage!!.contains(expectedMessage))
+	}
 
-            Assertions.assertThrows(ConflictException::class.java) {
-                runBlockingTest { recipientAccountService.create(createRecipientAccountRequest) }
-            }
-        }
-    }
+	@Test
+	fun whenGetSupervisorsOfEmployee_success_thenReturnObjectNode() {
+		//given
+		val name = "Pete"
+		val supervisor = "Nick"
+		val superiorVisor = "Sophie"
+		val parentUUID = UUID.randomUUID()
+		val superParentUUID = UUID.randomUUID()
+		val relation = Relation(id = UUID.randomUUID(), name = name, supervisorId = parentUUID)
+		val relationSuper = Relation(id = parentUUID, name = supervisor, supervisorId = superParentUUID)
+		val relationSuperior = Relation(id = parentUUID, name = superiorVisor, supervisorId = null)
+		every { relationRepository.findOneByName(name) } returns relation
+		every { relationRepository.findByIdOrNull(parentUUID) } returns relationSuper
+		every { relationRepository.findByIdOrNull(superParentUUID) } returns relationSuperior
+		val resultNode = ObjectMapper().readTree(
+			"{\n" +
+					"    \"supervisor\": \"Nick\",\n" +
+					"    \"superiorVisor\": \"Sophie\"\n" +
+					"}"
+		)
 
-    @Test
-    fun `when recipientAccountService#updateById is called it should correctly update and return RecipientAccount`() {
-        runBlockingTest {
-            // Given
-            val updateRecipientAccountRequest = getUpdateRecipientAccountRequest()
-            val recipientAccount = getRecipientAccount(
-                targetName = "Name updated",
-                description = "Desc updated",
-                targetInfo = "12314134 updated"
-            )
+		//when
+		val result = hierarchyService.getSupervisorsOfEmployee(name)
 
-            coEvery { customerService.existsById(UUID.fromString("75e5624e-7453-42de-b4e2-645a385bdbae")) } returns true
-            coEvery { recipientAccountRepository.findById(UUID.fromString("65e5624e-7453-42de-b4e2-645a385bdbae")) } returns recipientAccount
-            coEvery {
-                recipientAccountRepository.existsByCustomerIdAndTargetInfo(
-                    UUID.fromString("75e5624e-7453-42de-b4e2-645a385bdbae"),
-                    updateRecipientAccountRequest.targetInfo!!
-                )
-            } returns false
-            coEvery { recipientAccountRepository.save(recipientAccount) } returns recipientAccount
-            every { appProperties.bulkCreateRecipientAccountLimit } returns 20
+		//then
+		verify(exactly = 1) { relationRepository.findOneByName(name) }
+		assertEquals(resultNode, result)
+	}
 
-            // When
-            val actual = recipientAccountService.updateById(
-                UUID.fromString("65e5624e-7453-42de-b4e2-645a385bdbae"),
-                updateRecipientAccountRequest
-            )
-
-            // Then
-            Assertions.assertEquals(recipientAccount, actual)
-        }
-    }
-
-
-
-*/
 }
