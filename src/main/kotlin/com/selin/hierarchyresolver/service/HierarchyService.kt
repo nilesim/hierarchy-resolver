@@ -1,11 +1,11 @@
-package com.personio.selin.hierarchyresolver.service
+package com.selin.hierarchyresolver.service
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.node.TextNode
-import com.personio.selin.hierarchyresolver.domain.model.Relation
-import com.personio.selin.hierarchyresolver.repository.RelationRepository
+import com.selin.hierarchyresolver.domain.model.Relation
+import com.selin.hierarchyresolver.repository.RelationRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service

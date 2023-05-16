@@ -1,4 +1,4 @@
-package com.personio.selin.hierarchyresolver.security
+package com.selin.hierarchyresolver.security
 
 
 import org.springframework.context.annotation.Configuration

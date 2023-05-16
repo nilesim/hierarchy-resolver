@@ -1,6 +1,6 @@
-package com.personio.selin.hierarchyresolver.repository
+package com.selin.hierarchyresolver.repository
 
-import com.personio.selin.hierarchyresolver.domain.model.Relation
+import com.selin.hierarchyresolver.domain.model.Relation
 import org.springframework.data.repository.CrudRepository
 import java.util.*
 

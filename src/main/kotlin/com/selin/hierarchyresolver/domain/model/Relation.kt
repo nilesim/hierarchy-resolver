@@ -1,4 +1,4 @@
-package com.personio.selin.hierarchyresolver.domain.model
+package com.selin.hierarchyresolver.domain.model
 
 import javax.persistence.Id
 import java.util.UUID

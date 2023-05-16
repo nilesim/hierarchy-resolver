@@ -1,9 +1,9 @@
-package com.personio.selin.hierarchyresolver.service
+package com.selin.hierarchyresolver.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-import com.personio.selin.hierarchyresolver.domain.model.Relation
-import com.personio.selin.hierarchyresolver.repository.RelationRepository
+import com.selin.hierarchyresolver.domain.model.Relation
+import com.selin.hierarchyresolver.repository.RelationRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

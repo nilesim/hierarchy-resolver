@@ -1,4 +1,4 @@
-package com.personio.selin.hierarchyresolver.domain.exception
+package com.selin.hierarchyresolver.domain.exception
 
 data class ErrorResponse(
     val code: String,
